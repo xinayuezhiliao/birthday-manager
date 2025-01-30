@@ -21,9 +21,9 @@
           <el-input v-model="form.name" placeholder="请输入联系人姓名" />
         </el-form-item>
 
-        <el-form-item label="生日" prop="birthday">
+        <el-form-item label="生日" prop="birthDate">
           <el-date-picker
-            v-model="form.birthday"
+            v-model="form.birthDate"
             type="date"
             placeholder="选择生日日期"
             format="YYYY-MM-DD"
@@ -40,18 +40,6 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="头像">
-          <el-upload
-            class="avatar-uploader"
-            action="#"
-            :show-file-list="false"
-            :before-upload="beforeAvatarUpload"
-          >
-            <img v-if="form.avatar" :src="form.avatar" class="avatar" />
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-          </el-upload>
-        </el-form-item>
-
         <el-form-item label="备注" prop="notes">
           <el-input
             v-model="form.notes"
@@ -61,7 +49,7 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="submitForm(formRef)">
+          <el-button type="primary" @click="submitForm(formRef)" :loading="loading">
             保存联系人
           </el-button>
           <el-button @click="$router.push('/')">取消</el-button>
@@ -75,16 +63,17 @@
 import { ref, reactive } from 'vue'
 import { UserPlus, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { mockApi } from '../mock/contacts'
+import { birthdayApi } from '../api/birthday'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const formRef = ref()
+const loading = ref(false)
+
 const form = reactive({
   name: '',
-  birthday: '',
+  birthDate: '',
   relationship: '',
-  avatar: '',
   notes: ''
 })
 
@@ -93,7 +82,7 @@ const rules = {
     { required: true, message: '请输入联系人姓名', trigger: 'blur' },
     { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
   ],
-  birthday: [
+  birthDate: [
     { required: true, message: '请选择生日日期', trigger: 'change' }
   ],
   relationship: [
@@ -101,41 +90,37 @@ const rules = {
   ]
 }
 
-const beforeAvatarUpload = (file) => {
-  const isJPG = file.type === 'image/jpeg'
-  const isLt2M = file.size / 1024 / 1024 < 2
-
-  if (!isJPG) {
-    ElMessage.error('头像图片只能是 JPG 格式!')
-  }
-  if (!isLt2M) {
-    ElMessage.error('头像图片大小不能超过 2MB!')
-  }
-
-  if (isJPG && isLt2M) {
-    const reader = new FileReader()
-    reader.readAsDataURL(file)
-    reader.onload = (e) => {
-      form.avatar = e.target.result
-    }
-  }
-  return false
-}
-
 const submitForm = async (formEl) => {
   if (!formEl) return
   
-  await formEl.validate(async (valid) => {
-    if (valid) {
-      try {
-        await mockApi.createContact(form)
-        ElMessage.success('联系人添加成功！')
-        router.push('/')
-      } catch (error) {
-        ElMessage.error('添加失败：' + error.message)
-      }
+  try {
+    await formEl.validate()
+    loading.value = true
+    
+    await birthdayApi.createBirthday({
+      name: form.name,
+      birthDate: form.birthDate,
+      relationship: form.relationship,
+      notes: form.notes || ''
+    })
+    
+    ElMessage.success('联系人添加成功！')
+    router.push('/')
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      ElMessage.warning('请检查表单信息是否填写正确')
+    } else {
+      ElMessage.error('添加联系人失败，请稍后重试')
+      console.error('Error submitting form:', error)
     }
-  })
+  } finally {
+    loading.value = false
+  }
+}
+
+const resetForm = (formEl) => {
+  if (!formEl) return
+  formEl.resetFields()
 }
 </script>
 
@@ -161,41 +146,5 @@ const submitForm = async (formEl) => {
 
 .contact-form {
   margin-top: 20px;
-}
-
-.avatar-uploader {
-  text-align: center;
-}
-
-.avatar-uploader .avatar {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-}
-
-.avatar-uploader .el-upload {
-  border: 1px dashed var(--el-border-color);
-  border-radius: 50%;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: var(--el-transition-duration-fast);
-}
-
-.avatar-uploader .el-upload:hover {
-  border-color: var(--el-color-primary);
-}
-
-.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 100px;
-  height: 100px;
-  text-align: center;
-  border-radius: 50%;
-  background: #f8f9fa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 </style>

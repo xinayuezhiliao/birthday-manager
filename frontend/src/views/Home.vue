@@ -85,6 +85,12 @@
                 <p class="stat-number">{{ stats.nextMonth }}</p>
               </div>
             </el-col>
+            <el-col :span="12">
+              <div class="stat-item">
+                <h3>总生日数</h3>
+                <p class="stat-number">{{ stats.total }}</p>
+              </div>
+            </el-col>
           </el-row>
         </el-card>
       </el-col>
@@ -95,44 +101,73 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { Calendar, Operation, DataLine, Plus } from '@element-plus/icons-vue'
-import { format } from 'date-fns'
+import { format, differenceInDays, addYears } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { mockApi } from '../mock/contacts'
+import { birthdayApi } from '../api/birthday'
+import { ElMessage } from 'element-plus'
 
 const upcomingBirthdays = ref([])
 const stats = ref({
   thisMonth: 0,
-  nextMonth: 0
+  nextMonth: 0,
+  total: 0
 })
 
+// 格式化日期
 const formatDate = (date) => {
   return format(new Date(date), 'MM月dd日', { locale: zhCN })
 }
 
+// 获取时间线项目类型
 const getTimelineItemType = (daysUntil) => {
-  if (daysUntil <= 3) return 'danger'
-  if (daysUntil <= 7) return 'warning'
+  if (daysUntil <= 7) return 'danger'
+  if (daysUntil <= 30) return 'warning'
   return 'primary'
 }
 
+// 获取姓名缩写
 const getInitials = (name) => {
   return name.charAt(0)
 }
 
+// 计算距离下一个生日的天数
+const calculateDaysUntil = (birthDate) => {
+  const today = new Date()
+  const birth = new Date(birthDate)
+  const thisYearBirthday = new Date(today.getFullYear(), birth.getMonth(), birth.getDate())
+  
+  if (thisYearBirthday < today) {
+    return differenceInDays(addYears(thisYearBirthday, 1), today)
+  }
+  return differenceInDays(thisYearBirthday, today)
+}
+
 onMounted(async () => {
-  // 获取即将到来的生日
-  upcomingBirthdays.value = await mockApi.getUpcomingBirthdays()
-  
-  // 获取本月和下月的生日统计
-  const currentMonth = new Date().getMonth() + 1
-  const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
-  
-  const thisMonthBirthdays = await mockApi.getMonthBirthdays(currentMonth)
-  const nextMonthBirthdays = await mockApi.getMonthBirthdays(nextMonth)
-  
-  stats.value = {
-    thisMonth: thisMonthBirthdays.length,
-    nextMonth: nextMonthBirthdays.length
+  try {
+    // 获取即将到来的生日
+    const response = await birthdayApi.getUpcomingBirthdays(60)
+    upcomingBirthdays.value = response.data.map(birthday => ({
+      id: birthday.id,
+      name: birthday.name,
+      relationship: birthday.relationship,
+      birthday: birthday.birthDate,
+      daysUntil: calculateDaysUntil(birthday.birthDate)
+    })).sort((a, b) => a.daysUntil - b.daysUntil)
+
+    // 更新统计信息
+    const allBirthdays = await birthdayApi.getAllBirthdays()
+    const today = new Date()
+    const currentMonth = today.getMonth()
+    const nextMonth = (currentMonth + 1) % 12
+
+    stats.value = {
+      thisMonth: allBirthdays.data.filter(b => new Date(b.birthDate).getMonth() === currentMonth).length,
+      nextMonth: allBirthdays.data.filter(b => new Date(b.birthDate).getMonth() === nextMonth).length,
+      total: allBirthdays.data.length
+    }
+  } catch (error) {
+    ElMessage.error('获取数据失败，请稍后重试')
+    console.error('Error fetching data:', error)
   }
 })
 </script>

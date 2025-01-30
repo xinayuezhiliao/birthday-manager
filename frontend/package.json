@@ -3,9 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "\"%ProgramFiles%\\nodejs\\node.exe\" .\\node_modules\\vite\\bin\\vite.js",
-    "build": "\"%ProgramFiles%\\nodejs\\node.exe\" .\\node_modules\\vite\\bin\\vite.js build",
-    "preview": "\"%ProgramFiles%\\nodejs\\node.exe\" .\\node_modules\\vite\\bin\\vite.js preview"
+    "dev": "npx vite",
+    "build": "npx vite build",
+    "preview": "npx vite preview"
   },
   "dependencies": {
     "vue": "^3.3.4",

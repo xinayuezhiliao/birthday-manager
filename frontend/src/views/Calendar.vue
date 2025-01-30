@@ -10,7 +10,7 @@
         </div>
       </template>
 
-      <el-calendar v-model="currentDate">
+      <el-calendar v-model="currentDate" :loading="loading">
         <template #dateCell="{ data }">
           <div class="calendar-cell">
             <p :class="{ 'is-today': isToday(data.day) }">
@@ -61,10 +61,12 @@ import { ref, onMounted } from 'vue'
 import { Calendar } from '@element-plus/icons-vue'
 import { format, isToday as _isToday } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { mockApi } from '../mock/contacts'
+import { birthdayApi } from '../api/birthday'
+import { ElMessage } from 'element-plus'
 
 const currentDate = ref(new Date())
 const birthdays = ref([])
+const loading = ref(false)
 
 const isToday = (day) => {
   return _isToday(new Date(day))
@@ -72,7 +74,7 @@ const isToday = (day) => {
 
 const getBirthdays = (day) => {
   return birthdays.value.filter(b => {
-    const bDay = new Date(b.birthday)
+    const bDay = new Date(b.birthDate)
     const cellDay = new Date(day)
     return bDay.getMonth() === cellDay.getMonth() && 
            bDay.getDate() === cellDay.getDate()
@@ -90,15 +92,22 @@ const getRelationshipColor = (relationship) => {
 }
 
 const formatBirthdayTooltip = (birthday) => {
-  const age = new Date().getFullYear() - new Date(birthday.birthday).getFullYear()
-  return `${birthday.name} (${birthday.relationship})\n${age}岁生日`
+  const birthDate = new Date(birthday.birthDate)
+  const age = new Date().getFullYear() - birthDate.getFullYear()
+  const formattedDate = format(birthDate, 'yyyy年MM月dd日', { locale: zhCN })
+  return `${birthday.name} (${birthday.relationship})\n${formattedDate}\n今年${age}岁`
 }
 
 onMounted(async () => {
   try {
-    birthdays.value = await mockApi.getAllContacts()
+    loading.value = true
+    const response = await birthdayApi.getAllBirthdays()
+    birthdays.value = response.data
   } catch (error) {
     console.error('获取生日数据失败:', error)
+    ElMessage.error('获取生日数据失败，请稍后重试')
+  } finally {
+    loading.value = false
   }
 })
 </script>
